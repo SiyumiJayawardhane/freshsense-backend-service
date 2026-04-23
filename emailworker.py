@@ -30,3 +30,20 @@ def mask_email(email: str | None) -> str:
     else:
         masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
     return f"{masked_local}@{domain}"
+
+def get_user_email(cur, user_id: str) -> str | None:
+    cur.execute(
+        "SELECT email FROM auth.users WHERE id = %s LIMIT 1",
+        (user_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        logger.warning(f"No auth.users row found for user_id={user_id}")
+        return None
+    email = row.get("email")
+    normalized = str(email).strip() if email else None
+    if not normalized:
+        logger.warning(f"auth.users.email missing for user_id={user_id}")
+    else:
+        logger.info(f"Resolved recipient for user_id={user_id}: {mask_email(normalized)}")
+    return normalized
