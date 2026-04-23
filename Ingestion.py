@@ -104,3 +104,24 @@ def upsert_food_item(cur, user_id: str, item: dict[str, Any], detected_at: str) 
         ),
     )
     return str(cur.fetchone()["id"])
+
+def insert_sensor_reading(cur, user_id: str, food_item_id: str | None, sensor: SensorInput, recorded_at: str) -> None:
+    cur.execute(
+        """
+        INSERT INTO public.sensor_readings
+            (user_id, food_item_id, humidity, temperature, gas_value, recorded_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """,
+        (user_id, food_item_id, sensor.humidity, sensor.temperature, sensor.gas_value, recorded_at),
+    )
+ 
+ 
+def insert_notification(cur, user_id: str, food_item_id: str, title: str, message: str, severity: str, created_at: str) -> None:
+    cur.execute(
+        """
+        INSERT INTO public.notifications
+            (user_id, food_item_id, title, message, severity, is_read, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        (user_id, food_item_id, title, message, severity, False, created_at),
+    )
