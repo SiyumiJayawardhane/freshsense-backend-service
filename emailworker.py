@@ -46,4 +46,28 @@ def get_user_email(cur, user_id: str) -> str | None:
         logger.warning(f"auth.users.email missing for user_id={user_id}")
     else:
         logger.info(f"Resolved recipient for user_id={user_id}: {mask_email(normalized)}")
-    return normalized
+    return normalized 
+
+def ensure_email_dispatch_table(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS public.notification_email_dispatches (
+            notification_id uuid PRIMARY KEY REFERENCES public.notifications(id) ON DELETE CASCADE,
+            user_id uuid NOT NULL,
+            fingerprint text,
+            recipient_email text,
+            status text NOT NULL,
+            last_error text,
+            attempts integer NOT NULL DEFAULT 0,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+        )
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE public.notification_email_dispatches
+        ADD COLUMN IF NOT EXISTS fingerprint text
+        """
+    )
+    logger.info("Ensured email dispatch tracking table exists")
