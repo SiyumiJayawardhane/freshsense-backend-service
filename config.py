@@ -28,3 +28,16 @@ EMAIL_DEDUP_WINDOW_HOURS = int(os.getenv("EMAIL_DEDUP_WINDOW_HOURS", "24").strip
 EDGE_TRIGGER_URL = os.getenv("EDGE_TRIGGER_URL", "").strip()
 EDGE_TRIGGER_TOKEN = os.getenv("EDGE_TRIGGER_TOKEN", "").strip()
 EDGE_TRIGGER_TIMEOUT_SECONDS = float(os.getenv("EDGE_TRIGGER_TIMEOUT_SECONDS", "8").strip())
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "").strip() or "food-images"
+
+CLEANUP_TABLES = tuple(
+    t.strip()
+    for t in os.getenv(
+        "CLEANUP_TABLES",
+        "notification_email_dispatches,notifications,sensor_readings,food_items",
+    ).split(",")
+    if t.strip() and t.strip().lower() != "profiles"
+)
