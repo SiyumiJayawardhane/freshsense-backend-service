@@ -17,19 +17,21 @@ from config import (
     EDGE_TRIGGER_TIMEOUT_SECONDS,
     EDGE_TRIGGER_TOKEN,
     EDGE_TRIGGER_URL,
-    FRONTEND_ORIGIN,
+    FRONTEND_ORIGINS,
     logger,
 )
+from cleanup import run_cleanup_once
 from db import get_conn
 from email_worker import email_dispatch_worker
 from ingestion import derive_detection, insert_notification, insert_sensor_reading, upsert_food_item
 from schemas import EdgeTriggerRequest, IngestPayload
  
 app = FastAPI(title="FreshSense Live Backend", version="1.0.0")
+allow_all_origins = "*" in FRONTEND_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN] if FRONTEND_ORIGIN != "*" else ["*"],
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all_origins else list(FRONTEND_ORIGINS),
+    allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -174,9 +176,11 @@ async def ingest(payload: IngestPayload):
  
 @app.post("/api/edge/trigger")
 async def trigger_edge(payload: EdgeTriggerRequest):
+    cleanup_result = run_cleanup_once(source="edge-trigger")
+
     if not EDGE_TRIGGER_URL:
         logger.warning("Edge trigger requested but EDGE_TRIGGER_URL is missing")
-        raise HTTPException(status_code=503, detail="EDGE_TRIGGER_URL is not configured")
+        return {"ok": True, "cleanup": cleanup_result, "edge_forwarded": False}
  
     source = payload.source or "live-backend"
     trigger_url = f"{EDGE_TRIGGER_URL.rstrip('/')}/trigger-run"
@@ -192,7 +196,7 @@ async def trigger_edge(payload: EdgeTriggerRequest):
             raw = resp.read().decode("utf-8") if resp.length != 0 else "{}"
             data = json.loads(raw or "{}")
             logger.info("Edge trigger accepted status=%s source=%s", getattr(resp, "status", "unknown"), source)
-            return {"ok": True, "edge_response": data}
+            return {"ok": True, "cleanup": cleanup_result, "edge_forwarded": True, "edge_response": data}
     except urllib.error.HTTPError as ex:
         err_body = ex.read().decode("utf-8", errors="ignore")
         logger.error("Edge trigger HTTP error status=%s source=%s body=%s", ex.code, source, err_body)
