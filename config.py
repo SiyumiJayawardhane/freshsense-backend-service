@@ -24,3 +24,7 @@ SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() not in {"0", "f
  
 EMAIL_POLL_INTERVAL_SECONDS = float(os.getenv("EMAIL_POLL_INTERVAL_SECONDS", "10").strip())
 EMAIL_DEDUP_WINDOW_HOURS = int(os.getenv("EMAIL_DEDUP_WINDOW_HOURS", "24").strip())
+ 
+EDGE_TRIGGER_URL = os.getenv("EDGE_TRIGGER_URL", "").strip()
+EDGE_TRIGGER_TOKEN = os.getenv("EDGE_TRIGGER_TOKEN", "").strip()
+EDGE_TRIGGER_TIMEOUT_SECONDS = float(os.getenv("EDGE_TRIGGER_TIMEOUT_SECONDS", "8").strip())
