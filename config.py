@@ -14,6 +14,11 @@ logger = logging.getLogger("freshsense-live-backend")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 DEFAULT_USER_ID = os.getenv("SUPABASE_USER_ID", "").strip()
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "*").strip() or "*"
+FRONTEND_ORIGINS = tuple(
+    origin.strip()
+    for origin in os.getenv("FRONTEND_ORIGINS", FRONTEND_ORIGIN).split(",")
+    if origin.strip()
+)
  
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587").strip())

@@ -17,7 +17,7 @@ from config import (
     EDGE_TRIGGER_TIMEOUT_SECONDS,
     EDGE_TRIGGER_TOKEN,
     EDGE_TRIGGER_URL,
-    FRONTEND_ORIGIN,
+    FRONTEND_ORIGINS,
     logger,
 )
 from cleanup import run_cleanup_once
@@ -27,10 +27,11 @@ from ingestion import derive_detection, insert_notification, insert_sensor_readi
 from schemas import EdgeTriggerRequest, IngestPayload
  
 app = FastAPI(title="FreshSense Live Backend", version="1.0.0")
+allow_all_origins = "*" in FRONTEND_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN] if FRONTEND_ORIGIN != "*" else ["*"],
-    allow_credentials=True,
+    allow_origins=["*"] if allow_all_origins else list(FRONTEND_ORIGINS),
+    allow_credentials=not allow_all_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
