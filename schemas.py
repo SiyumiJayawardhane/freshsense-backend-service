@@ -25,6 +25,10 @@ class IngestPayload(BaseModel):
     captured_at: str | None = None
  
  
+class EdgeTriggerRequest(BaseModel):
+    source: str | None = None
+ 
+ 
 class NotificationRow(BaseModel):
     id: str
     user_id: str
