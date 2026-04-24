@@ -1,6 +1,8 @@
 import asyncio
 import json
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Any
  
@@ -10,11 +12,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
  
 import state
-from config import DEFAULT_USER_ID, FRONTEND_ORIGIN
+from config import (
+    DEFAULT_USER_ID,
+    EDGE_TRIGGER_TIMEOUT_SECONDS,
+    EDGE_TRIGGER_TOKEN,
+    EDGE_TRIGGER_URL,
+    FRONTEND_ORIGIN,
+    logger,
+)
 from db import get_conn
 from email_worker import email_dispatch_worker
 from ingestion import derive_detection, insert_notification, insert_sensor_reading, upsert_food_item
-from schemas import IngestPayload
+from schemas import EdgeTriggerRequest, IngestPayload
  
 app = FastAPI(title="FreshSense Live Backend", version="1.0.0")
 app.add_middleware(
@@ -161,6 +170,36 @@ async def ingest(payload: IngestPayload):
     state.latest_by_user[user_id] = snapshot
     await broadcast(user_id, snapshot)
     return {"ok": True, "saved_items": len(saved_items)}
+ 
+ 
+@app.post("/api/edge/trigger")
+async def trigger_edge(payload: EdgeTriggerRequest):
+    if not EDGE_TRIGGER_URL:
+        logger.warning("Edge trigger requested but EDGE_TRIGGER_URL is missing")
+        raise HTTPException(status_code=503, detail="EDGE_TRIGGER_URL is not configured")
+ 
+    source = payload.source or "live-backend"
+    trigger_url = f"{EDGE_TRIGGER_URL.rstrip('/')}/trigger-run"
+    request_body = json.dumps({"source": source}).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if EDGE_TRIGGER_TOKEN:
+        headers["X-Edge-Trigger-Token"] = EDGE_TRIGGER_TOKEN
+ 
+    logger.info("Forwarding manual trigger to edge source=%s url=%s", source, trigger_url)
+    req = urllib.request.Request(trigger_url, data=request_body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=EDGE_TRIGGER_TIMEOUT_SECONDS) as resp:
+            raw = resp.read().decode("utf-8") if resp.length != 0 else "{}"
+            data = json.loads(raw or "{}")
+            logger.info("Edge trigger accepted status=%s source=%s", getattr(resp, "status", "unknown"), source)
+            return {"ok": True, "edge_response": data}
+    except urllib.error.HTTPError as ex:
+        err_body = ex.read().decode("utf-8", errors="ignore")
+        logger.error("Edge trigger HTTP error status=%s source=%s body=%s", ex.code, source, err_body)
+        raise HTTPException(status_code=502, detail=f"edge trigger failed: {ex.code} {err_body}") from ex
+    except urllib.error.URLError as ex:
+        logger.error("Edge trigger connection error source=%s reason=%s", source, ex.reason)
+        raise HTTPException(status_code=502, detail=f"edge trigger connection failed: {ex.reason}") from ex
  
  
 if __name__ == "__main__":
